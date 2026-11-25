@@ -25,6 +25,7 @@ Poprawki dla **CachyOS** na **ThinkPad L14 Gen 2a (AMD, typ 20X6)** z kartą WiF
 | `ryzen-power` | Lenovo ogranicza Ryzen 7 PRO 5850U do 25 W pod dłuższym obciążeniem (przy temperaturze ledwie ~70 °C) | 2,92 GHz wszystkie rdzenie | **3,12 GHz (+7%)**, 30 W |
 | `lte-modem` | Modem LTE Quectel EM120R-GL jest niewidoczny (ModemManager wyłączony, blokada FCC) i zgłasza `sim-missing` mimo włożonej karty | brak LTE | LTE łączy się samo |
 | `easyeffects-l14` | Głośniki brzmią płasko i piskliwie (brak strojenia Dolby z Windows), przy podgłaśnianiu przester | przester ponad 6 dB przez 13% czasu | **0%**, krzywa z Windows ±0,17 dB |
+| `mic-l14` | Mikrofon wbudowany przesterowuje powyżej ~25%: suwak dokłada do +60 dB wzmocnienia sprzętowego (Capture +30 dB, Internal Mic Boost +30 dB) | 64% próbek przesterowanych przy 100% | **0%** przy 100% (100% = dawne 25%) |
 
 ---
 
@@ -110,6 +111,36 @@ Preset jest pod **wbudowane głośniki** – na słuchawkach wybierz inny preset
 - **Kompresor wielopasmowy:** pasmo basu (< 300 Hz) działa jak ogranicznik basu (Peak, lookahead 5 ms),
   żeby stopa perkusji nie ściszała całej muzyki w limiterze. Strojone na nagraniach radia i YouTube.
 - **Limiter:** tylko bezpiecznik – na głośnym radiu ścisza > 6 dB przez 0% czasu (było 13%).
+
+---
+
+## Mikrofon bez przesteru (`mic-l14`)
+
+Mikrofon wbudowany (Realtek ALC257) przesterowywał powyżej ~25%. Suwak głośności steruje naraz dwoma
+wzmacniaczami sprzętowymi, a 100% oznaczało **+60 dB** (Capture +30 dB + Internal Mic Boost +30 dB).
+Poprawka trzyma **Internal Mic Boost na 0 dB** i ogranicza **Capture do +23,25 dB**, więc
+**100% suwaka = dawne 25%**, a cały zakres 0–100% jest czysty.
+
+Sama poprawka:
+```
+cd ~/catchos-fixes
+```
+```
+sudo bash mic-l14/mic-l14-install.sh
+```
+Skrypt zapisuje nadpisanie profilu karty ALSA w Twoim katalogu domowym
+(`~/.config/alsa-card-profile/paths/`, pliki systemowe bez zmian), restartuje WirePlumber
+i ustawia suwak mikrofonu na 100%. Na końcu pokazuje stan miksera – powinno być
+**Capture 54 [23.25dB]** i **Internal Mic Boost 0 [0.00dB]**.
+
+Zmierzone (ten sam głos, ta sama odległość):
+
+| Suwak | Wzmocnienie sprzętowe przed → po | Przesterowane próbki przed → po |
+|---|---|---|
+| 50% | +40 dB → +4,5 dB | 11% → 0% |
+| 100% | +60 dB → +23,25 dB | 64% → **0%** (szczyt -10 dBFS) |
+
+Dla zestawu słuchawkowego w gnieździe tylko **Mic Boost** zostaje na 0 dB (Capture bez limitu).
 
 ---
 
@@ -228,3 +259,8 @@ sudo bash ath12k-ccfix/ath12k-ccfix-install.sh usun
   (`AT+QSIMDET: 1,1`); w tym laptopie styk zgłasza „brak karty”, więc SIM nie jest zasilana
   (`+CPIN: ERROR 10`). `AT+QUIMSLOT=1` + `AT+QSIMDET=0,0` zapisują się w pamięci modemu.
   `AT+CEER: Requested service option not subscribed` = zły APN – a2mobile wymaga `a2mobile.pl`.
+- **mic-l14:** ścieżka ACP `analog-input-internal-mic.conf` łączy `Capture` (0–63, -17,25…+30 dB) i
+  `Internal Mic Boost` (0–3, +10 dB na krok) w jeden suwak, więc 100% = +60 dB. Nadpisanie ustawia
+  `volume = zero` dla `Internal Mic Boost` / `Int Mic Boost` i `volume-limit = 54` (+23,25 dB) dla `Capture`;
+  w `analog-input-mic.conf` tylko `Mic Boost` dostaje `volume = zero`. PipeWire czyta nadpisania z
+  `~/.config/alsa-card-profile/paths/` przed `/usr/share/alsa-card-profile/mixer/paths/`.
