@@ -1,9 +1,20 @@
-# catchos-fixes
+# catchos-fixes-Lenovo-L14-G2
 
 [English](README.md) | **Polski**
 
 Poprawki dla **CachyOS** na **ThinkPad L14 Gen 2a (AMD, typ 20X6)** z kartą WiFi
 **Qualcomm FastConnect 7800 (WCN785x, sterownik ath12k)**.
+
+> **Poprawki WiFi (`ath12k-ccfix`, `wifi-fast-resume`) są tylko dla karty WiFi 7 Qualcomm
+> WCN785x / FastConnect 7800** (np. Quectel NCM865 / QCNCM865, PCI ID `17cb:1107`), założonej
+> zamiast fabrycznej karty WiFi. Z każdą inną kartą nie są potrzebne – `install-all.sh` sam
+> wykrywa kartę i je pomija. `iommu-fix` i `easyeffects-l14` działają niezależnie od karty WiFi.
+>
+> Sprawdź, jaką masz kartę:
+> ```
+> lspci -nn | grep -i network
+> ```
+> Jeśli w linijce jest `[17cb:1107]`, masz tę kartę.
 
 | Poprawka | Problem | Przed | Po |
 |---|---|---|---|
@@ -32,7 +43,7 @@ Skopiuj pokazany kod, wciśnij Enter, w przeglądarce wklej kod i zatwierdź.
 
 **3. Pobierz repo:**
 ```
-gh repo clone EstVsq/catchos-fixes ~/catchos-fixes
+gh repo clone EstVsq/catchos-fixes-Lenovo-L14-G2 ~/catchos-fixes
 ```
 
 **4. Zainstaluj wszystko naraz** (razem z presetem EasyEffects):

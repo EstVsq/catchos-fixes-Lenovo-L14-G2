@@ -40,6 +40,21 @@ if [ "$1" = "usun" ]; then
     exit 0
 fi
 
+has_wcn785x() {
+    for d in /sys/bus/pci/devices/*; do
+        [ "$(cat "$d/vendor" 2>/dev/null)" = "0x17cb" ] && \
+        [ "$(cat "$d/device" 2>/dev/null)" = "0x1107" ] && return 0
+    done
+    return 1
+}
+
+# ---------------- CZY JEST KARTA WCN785x (WiFi 7, PCI 17cb:1107)? ----------------
+if ! has_wcn785x; then
+    echo "Nie znaleziono karty WiFi 7 Qualcomm WCN785x (FastConnect 7800, PCI 17cb:1107)."
+    echo "Ta poprawka jest tylko dla tej karty - pomijam."
+    exit 0
+fi
+
 # ---------------- SPRAWDZENIE NARZEDZI ----------------
 MISSING=""
 for t in curl tar xz python3 make depmod; do

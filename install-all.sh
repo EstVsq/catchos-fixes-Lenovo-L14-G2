@@ -31,13 +31,28 @@ echo
 echo "=== 1/4 Szybkie wybudzanie systemu (iommu=pt) ==="
 bash "$DIR/iommu-fix/iommu-fix-install.sh" || echo "!!! iommu-fix nie wyszedl - patrz wyzej"
 
-echo
-echo "=== 2/4 Poprawiony sterownik WiFi ath12k (kraj po wybudzeniu) ==="
-bash "$DIR/ath12k-ccfix/ath12k-ccfix-install.sh" || echo "!!! ath12k-ccfix nie wyszedl - patrz wyzej"
+has_wcn785x() {
+    for d in /sys/bus/pci/devices/*; do
+        [ "$(cat "$d/vendor" 2>/dev/null)" = "0x17cb" ] && \
+        [ "$(cat "$d/device" 2>/dev/null)" = "0x1107" ] && return 0
+    done
+    return 1
+}
 
-echo
-echo "=== 3/4 Szybkie laczenie WiFi po wybudzeniu ==="
-bash "$DIR/wifi-fast-resume/wifi-fast-resume-install.sh" || echo "!!! wifi-fast-resume nie wyszedl - patrz wyzej"
+# Poprawki WiFi (2 i 3) tylko dla karty WiFi 7 Qualcomm WCN785x (PCI 17cb:1107)
+if has_wcn785x; then
+    echo
+    echo "=== 2/4 Poprawiony sterownik WiFi ath12k (kraj po wybudzeniu) ==="
+    bash "$DIR/ath12k-ccfix/ath12k-ccfix-install.sh" || echo "!!! ath12k-ccfix nie wyszedl - patrz wyzej"
+
+    echo
+    echo "=== 3/4 Szybkie laczenie WiFi po wybudzeniu ==="
+    bash "$DIR/wifi-fast-resume/wifi-fast-resume-install.sh" || echo "!!! wifi-fast-resume nie wyszedl - patrz wyzej"
+else
+    echo
+    echo "=== 2/4 i 3/4 POMINIETE: brak karty WiFi 7 Qualcomm WCN785x (PCI 17cb:1107) ==="
+    echo "Poprawki WiFi sa tylko dla tej karty (np. Quectel NCM865 / QCNCM865)."
+fi
 
 echo
 echo "=== 4/4 Preset EasyEffects dla glosnikow (krzywa z Windows) ==="
