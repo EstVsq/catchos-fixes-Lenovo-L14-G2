@@ -24,7 +24,7 @@ Poprawki dla **CachyOS** na **ThinkPad L14 Gen 2a (AMD, typ 20X6)** z kartą WiF
 | `touchpad-intertouch` | Touchpad Synaptics działa w starym trybie PS/2 i wolno się budzi | ~0,92 s | ~0,62 s |
 | `ryzen-power` | Lenovo ogranicza Ryzen 7 PRO 5850U do 25 W pod dłuższym obciążeniem (przy temperaturze ledwie ~70 °C) | 2,92 GHz wszystkie rdzenie | **3,12 GHz (+7%)**, 30 W |
 | `lte-modem` | Modem LTE Quectel EM120R-GL jest niewidoczny (ModemManager wyłączony, blokada FCC) i zgłasza `sim-missing` mimo włożonej karty | brak LTE | LTE łączy się samo |
-| `easyeffects-l14` | Głośniki brzmią płasko i piskliwie (brak strojenia Dolby z Windows), przy podgłaśnianiu przester | przester ponad 6 dB przez 13% czasu | **0%**, krzywa z Windows ±0,17 dB |
+| `easyeffects-l14` | Głośniki brzmią płasko i piskliwie (brak strojenia Dolby z Windows), przy podgłaśnianiu przester | przester ponad 6 dB przez 13% czasu | **0%**, krzywa z Windows ±0,17 dB; + preset mikrofonu (RNNoise, wyrazistość, -18,9 dBFS) |
 | `mic-l14` | Mikrofon wbudowany przesterowuje powyżej ~25%: suwak dokłada do +60 dB wzmocnienia sprzętowego (Capture +30 dB, Internal Mic Boost +30 dB) | 64% próbek przesterowanych przy 100% | **0%** przy 100% (100% = dawne 25%) |
 
 ---
@@ -111,6 +111,31 @@ Preset jest pod **wbudowane głośniki** – na słuchawkach wybierz inny preset
 - **Kompresor wielopasmowy:** pasmo basu (< 300 Hz) działa jak ogranicznik basu (Peak, lookahead 5 ms),
   żeby stopa perkusji nie ściszała całej muzyki w limiterze. Strojone na nagraniach radia i YouTube.
 - **Limiter:** tylko bezpiecznik – na głośnym radiu ścisza > 6 dB przez 0% czasu (było 13%).
+
+### Preset mikrofonu (`L14-mikrofon`)
+
+Ten sam skrypt instaluje też preset **wejściowy** `L14-mikrofon` (EasyEffects → zakładka **Wejście** → **Presety**).
+Najpierw zainstaluj poprawkę `mic-l14`, żeby mikrofon nie przesterowywał jeszcze przed EasyEffects.
+
+Łańcuch: Filtr 90 Hz → RNNoise → Korektor → Kompresor → Limiter.
+- **Filtr 90 Hz:** usuwa dudnienie wentylatora i obudowy poniżej 60 Hz (tam tak głośne jak głos).
+- **RNNoise:** odszumianie (stały syk przedwzmacniacza mikrofonu).
+- **Korektor:** -3 dB poniżej 220 Hz (mniej „pudełkowo”), **+6 dB przy 1,6 kHz** (tam mikrofonowi laptopa
+  brakowało ok. 10 dB wyrazistości mowy), -2 dB przy 7 kHz (syk, ostre „s”), filtr dolnoprzepustowy 12 kHz.
+- **Kompresor + Limiter:** wyrównują głos; zmierzone na nagraniach z tego laptopa: mowa
+  **-18,9 dBFS** (dobry poziom do rozmów), szczyty -1 dBFS, limiter pracuje 0,6% czasu.
+
+Suwak mikrofonu w systemie na **100%** (z `mic-l14` to czysty poziom).
+Głośność głosu reguluj **tylko** w **Kompresor → Makeup** (domyślnie +13 dB).
+
+| Problem | Co zmienić |
+|---|---|
+| Słyszą Cię za cicho | Kompresor → Makeup **+15** |
+| Szum tła między słowami | RNNoise → włącz **Enable VAD** |
+| Głos brzmi „robotycznie” | RNNoise → Wet **-6 dB** (domiesza trochę oryginału) |
+
+Jeśli programy nie używają presetu: EasyEffects → zakładka **Wejście** – program powinien być tam na liście
+(albo włącz *Przetwarzaj wszystkie strumienie wejściowe* w ustawieniach EasyEffects).
 
 ---
 
