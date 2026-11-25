@@ -22,6 +22,7 @@ Poprawki dla **CachyOS** na **ThinkPad L14 Gen 2a (AMD, typ 20X6)** z kartą WiF
 | `ath12k-ccfix` | Po wybudzeniu firmware WiFi zapomina kraj i przez ~7 s go odgaduje | 16 s | — |
 | `wifi-fast-resume` | NetworkManager długo skanuje 6 GHz zamiast od razu się połączyć | — | razem z ath12k-ccfix: **~1,2 s** do WiFi |
 | `touchpad-intertouch` | Touchpad Synaptics działa w starym trybie PS/2 i wolno się budzi | ~0,92 s | ~0,62 s |
+| `ryzen-power` | Lenovo ogranicza Ryzen 7 PRO 5850U do 25 W pod dłuższym obciążeniem (przy temperaturze ledwie ~70 °C) | 2,92 GHz wszystkie rdzenie | **3,12 GHz (+7%)**, 30 W |
 | `lte-modem` | Modem LTE Quectel EM120R-GL jest niewidoczny (ModemManager wyłączony, blokada FCC) i zgłasza `sim-missing` mimo włożonej karty | brak LTE | LTE łączy się samo |
 | `easyeffects-l14` | Głośniki brzmią płasko i piskliwie (brak strojenia Dolby z Windows), przy podgłaśnianiu przester | przester ponad 6 dB przez 13% czasu | **0%**, krzywa z Windows ±0,17 dB |
 
@@ -112,6 +113,27 @@ Preset jest pod **wbudowane głośniki** – na słuchawkach wybierz inny preset
 
 ---
 
+## Limit mocy 30 W (`ryzen-power`)
+
+Podnosi limit mocy procesora (PPT SLOW) z 25 W ustawionych przez Lenovo do **30 W** – to maksimum, które
+ten laptop przyjmuje (STAPM ma twardy sufit 30 W; 35 W jest od razu obcinane do 30). Zmierzone przy
+obciążeniu wszystkich 16 wątków: 2,92 → 3,12 GHz (**+7%**), ~85 °C po 3 minutach, wentylator ~4150 zamiast
+~3100 obr./min. Procesor i grafika dzielą jeden budżet mocy, więc grafika też trochę zyskuje.
+Przy zwykłej pracy (przeglądarka, edytor) różnicy nie ma.
+
+Działa **tylko na zasilaczu i w trybie zasilania „Wydajność”**; na baterii i w innych trybach obowiązują
+limity Lenovo. Sprawdzane przy starcie, po wybudzeniu i co 20 s (Lenovo potrafi przywrócić swoje limity).
+Jeśli brakuje `ryzenadj`, instalator buduje go ze źródeł (github.com/FlyGoat/RyzenAdj).
+
+Sprawdzenie:
+```
+sudo ryzenadj -i 2>/dev/null | grep -E 'STAPM LIMIT|PPT LIMIT (FAST|SLOW)'
+```
+```
+journalctl -t ryzen-power
+```
+Wartości (W, °C) są na początku pliku `/usr/local/sbin/ryzen-power-apply`.
+
 ## Modem LTE (`lte-modem`)
 
 Tylko dla modemu **Quectel EM120R-GL** (PCI `1eac:1001`); bez niego skrypt nic nie robi.
@@ -146,6 +168,7 @@ Nic nie trzeba robić:
   sterownik – WiFi działa, tylko po wybudzeniu łączy się wolniej (~8 s).
 - **wifi-fast-resume** – zwykły skrypt, nie zależy od kernela.
 - **touchpad-intertouch** – opcja modułu (`/etc/modprobe.d/psmouse-intertouch.conf`), nie zależy od kernela.
+- **ryzen-power** – usługa i timer systemd, nie zależy od kernela.
 - **lte-modem** – ustawienia siedzą w ModemManagerze, NetworkManagerze i w samym modemie, nie zależą od kernela.
 
 Sprawdzenie, który sterownik WiFi działa:
@@ -197,6 +220,10 @@ sudo bash ath12k-ccfix/ath12k-ccfix-install.sh usun
   skan tylko ostatnio używanego kanału, więc NetworkManager łączy się od razu.
 - **touchpad-intertouch:** `psmouse.synaptics_intertouch=1` – touchpad idzie przez SMBus (RMI4) zamiast PS/2;
   na PS/2 zostaje tylko TrackPoint (`serio_resume` ~0,6 s).
+- **ryzen-power:** profil Lenovo „performance” ustawia STAPM 30 W, PPT FAST 30 W, PPT SLOW 25 W, Tctl 100 °C,
+  StapmTimeConst 1 s. Pod pełnym obciążeniem procesor stoi na PPT SLOW = 25,0 W przy ~70 °C, czyli hamuje
+  go limit mocy. `ryzenadj` ustawia SLOW 30 / FAST 35 / Tctl 95; STAPM powyżej 30 W i `--stapm-time`
+  SMU odrzuca. Powrót do limitów Lenovo = chwilowa zmiana `platform_profile`, po której firmware ustawia je od nowa.
 - **lte-modem:** modem ma dwa gniazda SIM i domyślnie włączone wykrywanie karty przez styk
   (`AT+QSIMDET: 1,1`); w tym laptopie styk zgłasza „brak karty”, więc SIM nie jest zasilana
   (`+CPIN: ERROR 10`). `AT+QUIMSLOT=1` + `AT+QSIMDET=0,0` zapisują się w pamięci modemu.

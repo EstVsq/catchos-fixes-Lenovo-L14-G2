@@ -23,6 +23,7 @@ Fixes for **CachyOS** on a **ThinkPad L14 Gen 2a (AMD, type 20X6)** with a
 | `ath12k-ccfix` | After resume the WiFi firmware forgets the country and takes ~7 s to work it out again | 16 s | — |
 | `wifi-fast-resume` | NetworkManager spends a long time scanning 6 GHz instead of connecting right away | — | together with ath12k-ccfix: **~1.2 s** to WiFi |
 | `touchpad-intertouch` | The Synaptics touchpad runs in the old PS/2 mode and wakes up slowly | ~0.92 s | ~0.62 s |
+| `ryzen-power` | Lenovo caps the Ryzen 7 PRO 5850U at 25 W under sustained load (temperature only ~70 °C) | 2.92 GHz all-core | **3.12 GHz (+7%)**, 30 W |
 | `lte-modem` | The Quectel EM120R-GL LTE modem isn't visible (ModemManager off, FCC lock) and reports `sim-missing` with a SIM inserted | no LTE | LTE connects on its own |
 | `easyeffects-l14` | Speakers sound flat and tinny (no Dolby tuning from Windows) and distort when turned up | limiter cuts more than 6 dB 13% of the time | **0%**, Windows curve within ±0.17 dB |
 
@@ -114,6 +115,26 @@ Chain: Equalizer → Bass Enhancer → Filter 165 Hz → Stereo Tools → Multib
 
 ---
 
+## Power limit 30 W (`ryzen-power`)
+
+Raises the CPU power limit (PPT SLOW) from Lenovo's 25 W to **30 W** – the maximum this laptop accepts
+(STAPM is hard-capped at 30 W; 35 W is cut back to 30 immediately). Measured with all 16 threads loaded:
+2.92 → 3.12 GHz (**+7%**), ~85 °C after 3 minutes, fan ~4150 instead of ~3100 rpm. CPU and GPU share one
+power budget, so the iGPU gains a bit too. In normal work (browser, editor) there's no difference.
+
+Active **only on AC and in the "Performance" power profile**; on battery or in other profiles Lenovo's
+limits apply. Checked at boot, after resume and every 20 s (Lenovo may restore its limits).
+Installs `ryzenadj` (built from github.com/FlyGoat/RyzenAdj) if it's missing.
+
+Check:
+```
+sudo ryzenadj -i 2>/dev/null | grep -E 'STAPM LIMIT|PPT LIMIT (FAST|SLOW)'
+```
+```
+journalctl -t ryzen-power
+```
+Values (W, °C) are at the top of `/usr/local/sbin/ryzen-power-apply`.
+
 ## LTE modem (`lte-modem`)
 
 Only for the **Quectel EM120R-GL** LTE modem (PCI `1eac:1001`); without it the script does nothing.
@@ -148,6 +169,7 @@ Nothing to do:
   WiFi works, it just reconnects more slowly after resume (~8 s).
 - **wifi-fast-resume** – a plain script, it doesn't depend on the kernel.
 - **touchpad-intertouch** – a module option (`/etc/modprobe.d/psmouse-intertouch.conf`), doesn't depend on the kernel.
+- **ryzen-power** – a systemd service + timer, doesn't depend on the kernel.
 - **lte-modem** – settings live in ModemManager, NetworkManager and the modem itself, they don't depend on the kernel.
 
 Checking which WiFi driver is in use:
@@ -200,6 +222,10 @@ sudo bash ath12k-ccfix/ath12k-ccfix-install.sh usun
   scan only the last used channel, so NetworkManager connects right away.
 - **touchpad-intertouch:** `psmouse.synaptics_intertouch=1` – the touchpad goes over SMBus (RMI4) instead of PS/2;
   only the TrackPoint stays on PS/2 (`serio_resume` ~0.6 s).
+- **ryzen-power:** Lenovo "performance" profile sets STAPM 30 W, PPT FAST 30 W, PPT SLOW 25 W, Tctl 100 °C,
+  StapmTimeConst 1 s. Under full load the CPU sits at PPT SLOW = 25.0 W at ~70 °C, i.e. power-limited.
+  `ryzenadj` sets SLOW 30 / FAST 35 / Tctl 95; STAPM above 30 W and `--stapm-time` are rejected by the SMU.
+  Going back to stock = briefly switching `platform_profile`, which makes the firmware re-apply its limits.
 - **lte-modem:** the modem has two SIM slots and SIM-presence detection enabled by default
   (`AT+QSIMDET: 1,1`); in this laptop the detect pin reads "no card", so the SIM is never powered
   (`+CPIN: ERROR 10`). `AT+QUIMSLOT=1` + `AT+QSIMDET=0,0` are stored in the modem's NV memory.
