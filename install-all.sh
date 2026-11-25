@@ -12,6 +12,7 @@ fi
 DIR="$(cd "$(dirname "$0")" && pwd)"
 
 if [ "$1" = "usun" ]; then
+    bash "$DIR/easyeffects-l14/easyeffects-l14-install.sh" usun
     bash "$DIR/wifi-fast-resume/wifi-fast-resume-install.sh" usun
     bash "$DIR/ath12k-ccfix/ath12k-ccfix-install.sh" usun
     bash "$DIR/iommu-fix/iommu-fix-install.sh" usun
@@ -20,23 +21,27 @@ if [ "$1" = "usun" ]; then
     exit 0
 fi
 
-echo "=== 0/3 Pakiety potrzebne do budowania sterownika ==="
+echo "=== 0/4 Pakiety potrzebne do budowania sterownika ==="
 pacman -S --needed --noconfirm linux-cachyos-headers clang llvm lld python curl tar xz make || {
     echo "Nie udalo sie zainstalowac pakietow - sprawdz internet i sprobuj ponownie."
     exit 1
 }
 
 echo
-echo "=== 1/3 Szybkie wybudzanie systemu (iommu=pt) ==="
+echo "=== 1/4 Szybkie wybudzanie systemu (iommu=pt) ==="
 bash "$DIR/iommu-fix/iommu-fix-install.sh" || echo "!!! iommu-fix nie wyszedl - patrz wyzej"
 
 echo
-echo "=== 2/3 Poprawiony sterownik WiFi ath12k (kraj po wybudzeniu) ==="
+echo "=== 2/4 Poprawiony sterownik WiFi ath12k (kraj po wybudzeniu) ==="
 bash "$DIR/ath12k-ccfix/ath12k-ccfix-install.sh" || echo "!!! ath12k-ccfix nie wyszedl - patrz wyzej"
 
 echo
-echo "=== 3/3 Szybkie laczenie WiFi po wybudzeniu ==="
+echo "=== 3/4 Szybkie laczenie WiFi po wybudzeniu ==="
 bash "$DIR/wifi-fast-resume/wifi-fast-resume-install.sh" || echo "!!! wifi-fast-resume nie wyszedl - patrz wyzej"
+
+echo
+echo "=== 4/4 Preset EasyEffects dla glosnikow (krzywa z Windows) ==="
+bash "$DIR/easyeffects-l14/easyeffects-l14-install.sh" || echo "!!! easyeffects-l14 nie wyszedl - patrz wyzej"
 
 echo
 echo "KONIEC. Zrob restart:  reboot"
