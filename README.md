@@ -168,8 +168,10 @@ sudo bash ath12k-ccfix/ath12k-ccfix-install.sh usun
   Long term: request adding `20X6` to `drivers/platform/x86/amd/pmc/pmc-quirks.c`.
 - **ath12k-ccfix:** after resume the WCN785x firmware restarts with the WORLD regdomain
   and only gets the country back after an 802.11d scan (~7 s). The patch in `ath12k_core_resume()` sends
-  the last known country (`ar->alpha2`) right away via `ath12k_wmi_send_set_current_country_cmd()` –
+  the last known country right away via `ath12k_wmi_send_set_current_country_cmd()` –
   the same as in ath11k (commit `7f0343b7b871`).
+  The last real country is cached separately (from the 802.11d result), because when NetworkManager
+  disconnects before sleep, cfg80211 resets the regdomain and `ar->alpha2` becomes `00`.
 - **wifi-fast-resume:** after resume it waits for the country, aborts the full scan and has wpa_supplicant
   scan only the last used channel, so NetworkManager connects right away.
 - **touchpad-intertouch:** `psmouse.synaptics_intertouch=1` – the touchpad goes over SMBus (RMI4) instead of PS/2;

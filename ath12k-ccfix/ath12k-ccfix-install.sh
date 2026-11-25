@@ -73,6 +73,8 @@ cat > "$BUILDER" << 'BUILD_EOF'
 # Buduje poprawiony sterownik ath12k dla podanego kernela (albo --all dla wszystkich).
 # Przy jakimkolwiek bledzie zostaje oryginalny sterownik.
 set -o pipefail
+# wersja poprawki - zmiana wymusza przebudowe przy nastepnym uruchomieniu
+CCFIX_VER=2
 
 build_one() {
     local KVER="$1"
@@ -87,8 +89,8 @@ build_one() {
         echo "[$KVER] ten kernel nie ma sterownika ath12k_wifi7 - pomijam"
         return 0
     fi
-    if [ -f "$DEST/.built" ]; then
-        echo "[$KVER] poprawiony sterownik juz zbudowany"
+    if [ "$(cat "$DEST/.built" 2>/dev/null)" = "$CCFIX_VER" ]; then
+        echo "[$KVER] poprawiony sterownik (wersja $CCFIX_VER) juz zbudowany"
         return 0
     fi
     if grep -q '^CONFIG_MODULE_SIG_FORCE=y' "$KDIR/.config"; then
@@ -132,13 +134,25 @@ if "ath12k-ccfix" in s:
     sys.exit(0)
 anchor_fn = "int ath12k_core_resume(struct ath12k_base *ab)\n{"
 anchor_ret = "\n\treturn 0;\n}\nEXPORT_SYMBOL(ath12k_core_resume);"
-if s.count(anchor_fn) != 1 or s.count(anchor_ret) != 1:
-    sys.exit("nie znaleziono miejsca na poprawke (kod sterownika sie zmienil)")
+anchor_11d = "\t\tmemcpy(&ar->alpha2, &arg.alpha2, 2);\n"
+for a in (anchor_fn, anchor_ret, anchor_11d):
+    if s.count(a) != 1:
+        sys.exit("nie znaleziono miejsca na poprawke (kod sterownika sie zmienil)")
 helper = (
-    "/* ath12k-ccfix: firmware is reinitialized on resume and falls back to the\n"
-    " * WORLD regdomain until an 11d scan finishes (~7 s). Restore the last known\n"
+    "/* ath12k-ccfix v2: firmware is reinitialized on resume and falls back to the\n"
+    " * WORLD regdomain until an 11d scan finishes (~7 s). Restore the last real\n"
     " * country code right away (same approach as ath11k commit 7f0343b7b871).\n"
+    " * ar->alpha2 can't be used directly: when NetworkManager disconnects before\n"
+    " * suspend, cfg80211 resets the regdomain and ar->alpha2 becomes \"00\".\n"
     " */\n"
+    "static u8 ath12k_ccfix_alpha2[2];\n"
+    "\n"
+    "static void ath12k_ccfix_remember(const u8 *alpha2)\n"
+    "{\n"
+    "\tif (alpha2[0] && alpha2[1] && !(alpha2[0] == '0' && alpha2[1] == '0'))\n"
+    "\t\tmemcpy(ath12k_ccfix_alpha2, alpha2, 2);\n"
+    "}\n"
+    "\n"
     "static void ath12k_core_restore_cc_on_resume(struct ath12k_base *ab)\n"
     "{\n"
     "\tstruct wmi_set_current_country_arg arg = {};\n"
@@ -150,11 +164,17 @@ helper = (
     "\n"
     "\tfor (i = 0; i < ab->num_radios; i++) {\n"
     "\t\tar = ab->pdevs[i].ar;\n"
-    "\t\tif (!ar || !ar->alpha2[0] || !ar->alpha2[1] ||\n"
-    "\t\t    (ar->alpha2[0] == '0' && ar->alpha2[1] == '0'))\n"
+    "\t\tif (!ar)\n"
     "\t\t\tcontinue;\n"
     "\n"
-    "\t\tmemcpy(&arg.alpha2, ar->alpha2, 2);\n"
+    "\t\tath12k_ccfix_remember(ar->alpha2);\n"
+    "\t\tif (!ath12k_ccfix_alpha2[0]) {\n"
+    "\t\t\tdev_info(ab->dev, \"ath12k-ccfix: no known country yet, skipping\\n\");\n"
+    "\t\t\tcontinue;\n"
+    "\t\t}\n"
+    "\n"
+    "\t\tmemcpy(&arg.alpha2, ath12k_ccfix_alpha2, 2);\n"
+    "\t\tmemcpy(&ar->alpha2, ath12k_ccfix_alpha2, 2);\n"
     "\t\tar->ah->regd_updated = false;\n"
     "\t\treinit_completion(&ar->regd_update_completed);\n"
     "\n"
@@ -172,6 +192,7 @@ helper = (
 s = s.replace(anchor_fn, helper + anchor_fn)
 s = s.replace(anchor_ret,
     "\n\tath12k_core_restore_cc_on_resume(ab);\n\n\treturn 0;\n}\nEXPORT_SYMBOL(ath12k_core_resume);")
+s = s.replace(anchor_11d, anchor_11d + "\t\tath12k_ccfix_remember(arg.alpha2);\n")
 open(p, "w").write(s)
 PY_EOF
     then
@@ -192,7 +213,7 @@ PY_EOF
 
     mkdir -p "$DEST"
     install -m644 "$SRC/ath12k.ko" "$SRC/wifi7/ath12k_wifi7.ko" "$DEST/"
-    touch "$DEST/.built"
+    echo "$CCFIX_VER" > "$DEST/.built"
     depmod -a "$KVER"
     rm -rf "$WORK"
     echo "[$KVER] GOTOWE - poprawiony sterownik zainstalowany."
