@@ -2,6 +2,8 @@
 # easyeffects-l14: preset EasyEffects dla wbudowanych glosnikow ThinkPad L14 Gen 2a.
 # Korektor (16 pasm) odwzorowuje krzywa glosnikow z Windows (plik IR "abc"),
 # kompresor wielopasmowy pilnuje basu, limiter chroni przed przesterem.
+# Preset mikrofonu L14-mikrofon: filtr 90 Hz, odszumianie RNNoise, korektor (wyraznosc mowy),
+# kompresor glosu i limiter.
 # Preset trafia do katalogu domowego uzytkownika, ktory uruchomil sudo.
 #
 # Instalacja:  sudo bash easyeffects-l14-install.sh
@@ -27,12 +29,17 @@ NAME=L14-windows
 SRC="$DIR/$NAME.json"
 # EasyEffects 7 trzyma presety w ~/.config, EasyEffects 8 w ~/.local/share
 DIRS="$H/.config/easyeffects/output $H/.local/share/easyeffects/output"
+MIC=L14-mikrofon
+MIC_DIRS="$H/.config/easyeffects/input $H/.local/share/easyeffects/input"
 
 if [ "$1" = "usun" ]; then
     for D in $DIRS; do
         rm -f "$D/$NAME.json"
     done
-    echo "Usunieto preset $NAME. W EasyEffects wybierz inny preset albo wylacz efekty."
+    for D in $MIC_DIRS; do
+        rm -f "$D/$MIC.json"
+    done
+    echo "Usunieto presety $NAME i $MIC. W EasyEffects wybierz inny preset albo wylacz efekty."
     exit 0
 fi
 
@@ -43,7 +50,7 @@ fi
 
 # --- 1. Pakiety: EasyEffects + wtyczki LSP (korektor, kompresor, limiter, filtr) i Calf (bass enhancer) ---
 if command -v pacman >/dev/null; then
-    pacman -S --needed --noconfirm easyeffects lsp-plugins-lv2 calf || {
+    pacman -S --needed --noconfirm easyeffects lsp-plugins-lv2 calf rnnoise || {
         echo "Nie udalo sie zainstalowac pakietow - sprawdz internet i sprobuj ponownie."
         exit 1
     }
@@ -62,25 +69,38 @@ for D in $DIRS; do
         echo "Preset skopiowany: $D/$NAME.json"
     fi
 done
+for D in $MIC_DIRS; do
+    if [ -d "$(dirname "$D")" ] || [ "$FOUND" -eq 0 ]; then
+        install -d -o "$U" -g "$GID_U" "$D"
+        install -m 644 -o "$U" -g "$GID_U" "$DIR/$MIC.json" "$D/$MIC.json"
+        echo "Preset skopiowany: $D/$MIC.json"
+    fi
+done
 # katalogi nadrzedne zalozone przez root musza nalezec do uzytkownika
 for P in "$H/.config/easyeffects" "$H/.config" "$H/.local/share/easyeffects" "$H/.local/share" "$H/.local"; do
     [ -d "$P" ] && [ "$(stat -c %u "$P")" = "0" ] && chown "$U:$GID_U" "$P"
 done
 
-# --- 3. Wczytanie presetu, jesli EasyEffects juz dziala ---
+# --- 3. Wczytanie presetow, jesli EasyEffects juz dziala ---
 echo
 if pgrep -u "$U" -x easyeffects >/dev/null; then
-    runuser -u "$U" -- env XDG_RUNTIME_DIR="/run/user/$UID_U" \
-        DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$UID_U/bus" \
-        easyeffects -l "$NAME" >/dev/null 2>&1 \
-        && echo "Preset $NAME wczytany." \
-        || echo "Nie udalo sie wczytac automatycznie - w EasyEffects: Presety -> $NAME."
+    for N in "$NAME" "$MIC"; do
+        runuser -u "$U" -- env XDG_RUNTIME_DIR="/run/user/$UID_U" \
+            DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$UID_U/bus" \
+            easyeffects -l "$N" >/dev/null 2>&1 \
+            && echo "Preset $N wczytany." \
+            || echo "Nie udalo sie wczytac automatycznie - w EasyEffects: Presety -> $N."
+    done
 else
-    echo "EasyEffects nie jest uruchomiony. Uruchom go i wybierz: Presety -> $NAME."
+    echo "EasyEffects nie jest uruchomiony. Uruchom go i wybierz:"
+    echo "  Wyjscie (glosniki): Presety -> $NAME"
+    echo "  Wejscie (mikrofon): Presety -> $MIC"
 fi
 
 echo
 echo "GOTOWE. Sprawdz w EasyEffects:"
-echo "  Korektor: 16 pasm, tryb APO (DR)"
-echo "  Kompresor wielopasmowy -> pasmo 0: sidechain Peak, lookahead 5 ms"
-echo "Glosnosc reguluj tylko: Limiter -> Input gain (domyslnie +12,5 dB)."
+echo "  Wyjscie: Korektor 16 pasm, tryb APO (DR);"
+echo "           Kompresor wielopasmowy -> pasmo 0: sidechain Peak, lookahead 5 ms"
+echo "  Glosnosc glosnikow reguluj tylko: Limiter -> Input gain (domyslnie +12,5 dB)."
+echo "  Wejscie: Filtr 90 Hz -> RNNoise -> Korektor -> Kompresor -> Limiter"
+echo "  Glosnosc mikrofonu reguluj tylko: Kompresor -> Makeup (domyslnie +13 dB)."

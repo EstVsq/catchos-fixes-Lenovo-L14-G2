@@ -25,7 +25,7 @@ Fixes for **CachyOS** on a **ThinkPad L14 Gen 2a (AMD, type 20X6)** with a
 | `touchpad-intertouch` | The Synaptics touchpad runs in the old PS/2 mode and wakes up slowly | ~0.92 s | ~0.62 s |
 | `ryzen-power` | Lenovo caps the Ryzen 7 PRO 5850U at 25 W under sustained load (temperature only ~70 °C) | 2.92 GHz all-core | **3.12 GHz (+7%)**, 30 W |
 | `lte-modem` | The Quectel EM120R-GL LTE modem isn't visible (ModemManager off, FCC lock) and reports `sim-missing` with a SIM inserted | no LTE | LTE connects on its own |
-| `easyeffects-l14` | Speakers sound flat and tinny (no Dolby tuning from Windows) and distort when turned up | limiter cuts more than 6 dB 13% of the time | **0%**, Windows curve within ±0.17 dB |
+| `easyeffects-l14` | Speakers sound flat and tinny (no Dolby tuning from Windows) and distort when turned up | limiter cuts more than 6 dB 13% of the time | **0%**, Windows curve within ±0.17 dB; + mic preset (RNNoise, clarity, -18.9 dBFS) |
 | `mic-l14` | Built-in microphone distorts above ~25%: the slider adds up to +60 dB of hardware gain (Capture +30 dB, Internal Mic Boost +30 dB) | 64% of samples clipped at 100% | **0%** at 100% (100% = the old 25%) |
 
 ---
@@ -113,6 +113,31 @@ Chain: Equalizer → Bass Enhancer → Filter 165 Hz → Stereo Tools → Multib
 - **Multiband Compressor:** the bass band (< 300 Hz) works as a bass limiter (Peak, lookahead 5 ms),
   so the kick drum doesn't turn the whole music down in the limiter. Tuned on recordings of radio and YouTube.
 - **Limiter:** only a safety net – on loud radio it cuts more than 6 dB 0% of the time (was 13%).
+
+### Microphone preset (`L14-mikrofon`)
+
+The same script also installs the **input** preset `L14-mikrofon` (EasyEffects → **Input** tab → **Presets**).
+Install the `mic-l14` fix first, so the microphone doesn't distort before EasyEffects.
+
+Chain: Filter 90 Hz → RNNoise → Equalizer → Compressor → Limiter.
+- **Filter 90 Hz:** removes the fan/chassis rumble below 60 Hz (as loud as the voice there).
+- **RNNoise:** noise reduction (constant hiss from the mic preamp).
+- **Equalizer:** -3 dB below 220 Hz (less "boxy"), **+6 dB at 1.6 kHz** (the laptop mic was ~10 dB short
+  on speech clarity there), -2 dB at 7 kHz (hiss, sibilance), low-pass 12 kHz.
+- **Compressor + Limiter:** evens out the voice; measured on recordings from this laptop: speech at
+  **-18.9 dBFS** (good level for calls), peaks -1 dBFS, limiter active 0.6% of the time.
+
+Mic slider in the system at **100%** (with `mic-l14` that's a clean level).
+Set the voice loudness **only** with **Compressor → Makeup** (default +13 dB).
+
+| Problem | What to change |
+|---|---|
+| Others hear you too quietly | Compressor → Makeup **+15** |
+| Background noise between words | RNNoise → **Enable VAD** on |
+| Voice sounds "robotic" | RNNoise → Wet **-6 dB** (mixes some of the original back in) |
+
+If apps don't use the preset: EasyEffects → **Input** tab – the app should be listed there
+(or turn on *Process all input streams* in the EasyEffects settings).
 
 ---
 
