@@ -1,5 +1,5 @@
 #!/bin/bash
-# Instalator obejscia (wersja 5) bledu ath12k / WCN785x (FastConnect 7800):
+# Instalator obejscia (wersja 6) bledu ath12k / WCN785x (FastConnect 7800):
 # po wybudzeniu firmware resetuje kraj do WORLD i WiFi laczy sie ~16 s.
 # Gdy kraj wroci, skrypt przerywa dlugi pelny skan i kaze wpa_supplicant
 # zeskanowac tylko ostatnio uzywany kanal - NetworkManager laczy sie sam.
@@ -68,13 +68,12 @@ for i in $(seq 1 200); do
     fi
     NOW=$(ms)
     if [ -n "$FREQ" ] && [ -n "$C" ] && [ "$C" != "00" ] && [ "$ST" = "disconnected" ] \
-       && [ "$TRY" -lt 10 ] && { [ "$TRY" -eq 0 ] || [ $((NOW-LAST)) -ge 1000 ]; }; then
+       && [ "$TRY" -lt 6 ] && { [ "$TRY" -eq 0 ] || [ $((NOW-LAST)) -ge 500 ]; }; then
         LAST=$NOW
         TRY=$((TRY+1))
-        if [ "$TRY" -eq 1 ]; then
-            iw dev "$IFACE" scan abort >/dev/null 2>&1
-            sleep 0.1
-        fi
+        # przerwij pelny skan NetworkManagera (inaczej nasz skan zostanie odrzucony)
+        iw dev "$IFACE" scan abort >/dev/null 2>&1
+        sleep 0.05
         ERR=$(wpa_scan_freq "$FREQ")
         logger -t wifi-fast-resume "$(ms) ms: skan kanalu $FREQ MHz (proba $TRY) -> ${ERR:-ok}"
     fi
@@ -106,7 +105,7 @@ else
 fi
 
 echo
-echo "GOTOWE (wersja 5). Zainstalowano:"
+echo "GOTOWE (wersja 6). Zainstalowano:"
 echo "  $WORKER"
 echo "  $HOOK"
 echo
