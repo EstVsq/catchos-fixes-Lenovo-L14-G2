@@ -5,7 +5,7 @@
 Fixes for **CachyOS** on a **ThinkPad L14 Gen 2a (AMD, type 20X6)** with a
 **Qualcomm FastConnect 7800 (WCN785x, ath12k driver)** WiFi card.
 
-> **WiFi fixes (`ath12k-ccfix`, `wifi-fast-resume`) are only for the Qualcomm Wi-Fi 7 card
+> **WiFi fixes (`ath12k-ccfix`, `wifi-fast-resume`, `wifi-wowlan`) are only for the Qualcomm Wi-Fi 7 card
 > WCN785x / FastConnect 7800** (e.g. Quectel NCM865 / QCNCM865, PCI ID `17cb:1107`), fitted in
 > place of the factory WiFi card. With any other card they aren't needed – `install-all.sh`
 > detects the card and skips them automatically. `iommu-fix` and `easyeffects-l14` work
@@ -21,7 +21,9 @@ Fixes for **CachyOS** on a **ThinkPad L14 Gen 2a (AMD, type 20X6)** with a
 |---|---|---|---|
 | `iommu-fix` | Resume from sleep hangs for ~10 s (Lenovo BIOS bug with NVMe + IOMMU) | ~12 s | ~1.8 s |
 | `ath12k-ccfix` | After resume the WiFi firmware forgets the country and takes ~7 s to work it out again | 16 s | — |
-| `wifi-fast-resume` | NetworkManager spends a long time scanning 6 GHz instead of connecting right away | — | together with ath12k-ccfix: **~1.7 s** to WiFi |
+| `wifi-fast-resume` | NetworkManager spends a long time scanning 6 GHz instead of connecting right away | — | together with ath12k-ccfix: **~1.2 s** to WiFi |
+| `wifi-wowlan` | In sleep the WiFi card is switched off completely, so on resume its firmware boots from scratch | ~0.76 s | ~0 s |
+| `touchpad-intertouch` | The Synaptics touchpad runs in the old PS/2 mode and wakes up slowly | ~0.92 s | ~0.62 s |
 | `easyeffects-l14` | Speakers sound flat and tinny (no Dolby tuning from Windows) and distort when turned up | limiter cuts more than 6 dB 13% of the time | **0%**, Windows curve within ±0.17 dB |
 
 ---
@@ -123,6 +125,8 @@ Nothing to do:
   If the build fails (e.g. the driver code changed), the original driver is used automatically –
   WiFi works, it just reconnects more slowly after resume (~8 s).
 - **wifi-fast-resume** – a plain script, it doesn't depend on the kernel.
+- **wifi-wowlan** – a udev rule (`/etc/udev/rules.d/90-wifi-wowlan.rules`), doesn't depend on the kernel.
+- **touchpad-intertouch** – a module option (`/etc/modprobe.d/psmouse-intertouch.conf`), doesn't depend on the kernel.
 
 Checking which WiFi driver is in use:
 ```
@@ -170,3 +174,9 @@ sudo bash ath12k-ccfix/ath12k-ccfix-install.sh usun
   the same as in ath11k (commit `7f0343b7b871`).
 - **wifi-fast-resume:** after resume it waits for the country, aborts the full scan and has wpa_supplicant
   scan only the last used channel, so NetworkManager connects right away.
+- **wifi-wowlan:** with WoWLAN configured (trigger: magic packet) mac80211 suspends the card in WoW mode
+  instead of stopping it, so ath12k doesn't power the chip down and skips the firmware boot on resume
+  (`pci_pm_resume_early` 522 ms → ~0 ms). The laptop still reaches s0i3. NetworkManager disconnects
+  before sleep anyway, so in practice the trigger never fires.
+- **touchpad-intertouch:** `psmouse.synaptics_intertouch=1` – the touchpad goes over SMBus (RMI4) instead of PS/2;
+  only the TrackPoint stays on PS/2 (`serio_resume` ~0.6 s).
