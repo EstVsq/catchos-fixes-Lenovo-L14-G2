@@ -8,6 +8,7 @@ Poprawki dla **CachyOS** na **ThinkPad L14 Gen 2a (AMD, typ 20X6)** z kartą WiF
 | `iommu-fix` | Wybudzanie z uśpienia blokuje się na ~10 s (błąd BIOS-u Lenovo przy NVMe + IOMMU) | ~12 s | ~1,8 s |
 | `ath12k-ccfix` | Po wybudzeniu firmware WiFi zapomina kraj i przez ~7 s go odgaduje | 16 s | — |
 | `wifi-fast-resume` | NetworkManager długo skanuje 6 GHz zamiast od razu się połączyć | — | razem z ath12k-ccfix: **~1,7 s** do WiFi |
+| `easyeffects-l14` | Głośniki brzmią płasko i piskliwie (brak strojenia Dolby z Windows), przy podgłaśnianiu przester | przester ponad 6 dB przez 13% czasu | **0%**, krzywa z Windows ±0,17 dB |
 
 ---
 
@@ -32,7 +33,7 @@ Skopiuj pokazany kod, wciśnij Enter, w przeglądarce wklej kod i zatwierdź.
 gh repo clone EstVsq/catchos-fixes ~/catchos-fixes
 ```
 
-**4. Zainstaluj wszystko naraz:**
+**4. Zainstaluj wszystko naraz** (razem z presetem EasyEffects):
 ```
 cd ~/catchos-fixes
 ```
@@ -57,6 +58,42 @@ Powinno być `restored country code PL after resume` i `WiFi polaczone po ~1700 
 
 > Bez `gh`: na github.com wejdź w repo → zielony przycisk **Code** → **Download ZIP**,
 > rozpakuj do `~/catchos-fixes` i od kroku 4 tak samo.
+
+---
+
+## Preset EasyEffects dla głośników (`easyeffects-l14`)
+
+Sam preset (bez reszty poprawek):
+```
+cd ~/catchos-fixes
+```
+```
+sudo bash easyeffects-l14/easyeffects-l14-install.sh
+```
+Skrypt instaluje EasyEffects z wtyczkami (`lsp-plugins-lv2`, `calf`) i kopiuje preset
+`L14-windows` do Twojego katalogu domowego. Jeśli EasyEffects działa, od razu go wczytuje;
+jeśli nie – uruchom EasyEffects i wybierz **Presety → L14-windows**.
+
+Sprawdź w EasyEffects:
+- **Korektor:** 16 pasm, tryb **APO (DR)**
+- **Kompresor wielopasmowy → pasmo 0:** sidechain **Peak**, lookahead **5 ms**
+
+Głośność reguluj **tylko** suwakiem **Limiter → Input gain** (domyślnie +12,5 dB).
+
+| Problem | Co zmienić |
+|---|---|
+| Wszystko za cicho | Limiter → Input gain **+13,5** |
+| Bas za słaby | Kompresor wielopasmowy → pasmo 0 → Threshold **-15** |
+| Bas „charczy” | Kompresor wielopasmowy → pasmo 0 → Threshold **-21** |
+
+Preset jest pod **wbudowane głośniki** – na słuchawkach wybierz inny preset albo wyłącz efekty.
+
+Łańcuch: Korektor → Bass enhancer → Filtr 165 Hz → Stereo Tools → Kompresor wielopasmowy → Limiter.
+- **Korektor:** 16 pasm dopasowanych do odpowiedzi impulsowej głośników z Windows (192 próbki, 48 kHz);
+  błąd maks. 0,17 dB. Same cięcia (szczyt 0 dB), więc korektor sam nie przesteruje.
+- **Kompresor wielopasmowy:** pasmo basu (< 300 Hz) działa jak ogranicznik basu (Peak, lookahead 5 ms),
+  żeby stopa perkusji nie ściszała całej muzyki w limiterze. Strojone na nagraniach radia i YouTube.
+- **Limiter:** tylko bezpiecznik – na głośnym radiu ścisza > 6 dB przez 0% czasu (było 13%).
 
 ---
 
