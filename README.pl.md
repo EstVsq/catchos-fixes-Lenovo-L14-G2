@@ -26,6 +26,7 @@ Poprawki dla **CachyOS** na **ThinkPad L14 Gen 2a (AMD, typ 20X6)** z kartą WiF
 | `lte-modem` | Modem LTE Quectel EM120R-GL jest niewidoczny (ModemManager wyłączony, blokada FCC) i zgłasza `sim-missing` mimo włożonej karty | brak LTE | LTE łączy się samo |
 | `easyeffects-l14` | Głośniki brzmią płasko i piskliwie (brak strojenia Dolby z Windows), przy podgłaśnianiu przester | przester ponad 6 dB przez 13% czasu | **0%**, krzywa z Windows ±0,17 dB; + preset mikrofonu (RNNoise, wyrazistość, -18,9 dBFS) |
 | `mic-l14` | Mikrofon wbudowany przesterowuje powyżej ~25%: suwak dokłada do +60 dB wzmocnienia sprzętowego (Capture +30 dB, Internal Mic Boost +30 dB) | 64% próbek przesterowanych przy 100% | **0%** przy 100% (100% = dawne 25%) |
+| `audio-nosuspend` | Krótki „blep” przy starcie lub przewijaniu filmu: karta dźwiękowa pauzuje się na ułamek sekundy, a potem odgrywa resztkę starego dźwięku z własnego bufora (EasyEffects go wzmacnia) | blep przy 3 z 6 startów/przewinięć | rzadziej |
 
 ---
 
@@ -169,6 +170,30 @@ Dla zestawu słuchawkowego w gnieździe tylko **Mic Boost** zostaje na 0 dB (Cap
 
 ---
 
+## Bez „blepu” przy przewijaniu (`audio-nosuspend`)
+
+Gdy nic nie gra – nawet przez ułamek sekundy przy przewijaniu filmu na YouTube – PipeWire pauzuje wbudowaną
+kartę dźwiękową (a po 5 s ją usypia), a `snd_hda_intel` wyłącza zasilanie kodeka Realtek. Po wznowieniu karta
+odgrywa resztkę starego dźwięku z własnego bufora – słychać krótki „blep”; EasyEffects (limiter +12,5 dB) go wzmacnia.
+Nie ma go w żadnym nagraniu z PipeWire (sprawdzone przed i po EasyEffects) i to nie xrun (licznik ERR bez zmian).
+
+Sama poprawka:
+```
+cd ~/catchos-fixes
+```
+```
+sudo bash audio-nosuspend/audio-nosuspend-install.sh
+```
+- WirePlumber (`~/.config/wireplumber/wireplumber.conf.d/51-audio-nosuspend.conf`): wbudowane wyjście
+  `alsa_output.pci-0000_07_00.6.*` dostaje `node.pause-on-idle = false` i `session.suspend-timeout-seconds = 0` –
+  gra ciszę zamiast się pauzować. HDMI i Bluetooth bez zmian.
+- `snd_hda_intel power_save=0` (`/etc/modprobe.d/audio-nosuspend.conf`; także w TLP, jeśli jest zainstalowany).
+
+Na końcu skrypt pokazuje `power_save: 0`, `session.suspend-timeout-seconds = 0` i `node.pause-on-idle = false`.
+Koszt: ok. 0,1–0,3 W więcej.
+
+---
+
 ## Limit mocy 30 W (`ryzen-power`)
 
 Podnosi limit mocy procesora (PPT SLOW) z 25 W ustawionych przez Lenovo do **30 W** – to maksimum, które
@@ -289,3 +314,7 @@ sudo bash ath12k-ccfix/ath12k-ccfix-install.sh usun
   `volume = zero` dla `Internal Mic Boost` / `Int Mic Boost` i `volume-limit = 54` (+23,25 dB) dla `Capture`;
   w `analog-input-mic.conf` tylko `Mic Boost` dostaje `volume = zero`. PipeWire czyta nadpisania z
   `~/.config/alsa-card-profile/paths/` przed `/usr/share/alsa-card-profile/mixer/paths/`.
+- **audio-nosuspend:** nagrane wyjście przeglądarki (monitor `easyeffects_sink`) i wyjście karty
+  (monitor `alsa_output…`) podczas przewijania: oba czyste, EasyEffects dodaje 33 ms opóźnienia i ~25 ms zaniku, bez starego dźwięku.
+  `pw-top` bez nowych xrunów, ale między odtwarzaniami wyjście w stanie `I` (idle), a `easyeffects_sink` w `S` –
+  stary dźwięk pochodzi z bufora ALSA przy ponownym starcie zapauzowanego PCM.
