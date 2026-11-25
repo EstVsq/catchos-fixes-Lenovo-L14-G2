@@ -91,6 +91,11 @@ Skrypt instaluje EasyEffects z wtyczkami (`lsp-plugins-lv2`, `calf`) i kopiuje p
 `L14-windows` do Twojego katalogu domowego. Jeśli EasyEffects działa, od razu go wczytuje;
 jeśli nie – uruchom EasyEffects i wybierz **Presety → L14-windows**.
 
+Skrypt ustawia też w EasyEffects *inactivity timeout* na 3600 s (`~/.config/easyeffects/db/easyeffectsrc`,
+`[EffectsPipelines]`, `outputInactivityTimeout` / `inputInactivityTimeout`). Domyślnie EasyEffects po 30 s ciszy
+odłącza filtry i podłącza je z powrotem, gdy dźwięk rusza – to ponowne podłączenie słychać jako krótki „blep”.
+Jeśli EasyEffects działa, uruchom go potem ponownie (menu → Zakończ i włącz jeszcze raz).
+
 Sprawdź w EasyEffects:
 - **Korektor:** 16 pasm, tryb **APO (DR)**
 - **Kompresor wielopasmowy → pasmo 0:** sidechain **Peak**, lookahead **5 ms**

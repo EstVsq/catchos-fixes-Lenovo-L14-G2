@@ -2,6 +2,7 @@
 # easyeffects-l14: preset EasyEffects dla wbudowanych glosnikow ThinkPad L14 Gen 2a.
 # Korektor (16 pasm) odwzorowuje krzywa glosnikow z Windows (plik IR "abc"),
 # kompresor wielopasmowy pilnuje basu, limiter chroni przed przesterem.
+# Ustawia tez EasyEffects tak, zeby nie odlaczal filtrow w ciszy (bez "blepu").
 # Preset mikrofonu L14-mikrofon: filtr 90 Hz, odszumianie RNNoise, korektor (wyraznosc mowy),
 # kompresor glosu i limiter.
 # Preset trafia do katalogu domowego uzytkownika, ktory uruchomil sudo.
@@ -31,6 +32,10 @@ SRC="$DIR/$NAME.json"
 DIRS="$H/.config/easyeffects/output $H/.local/share/easyeffects/output"
 MIC=L14-mikrofon
 MIC_DIRS="$H/.config/easyeffects/input $H/.local/share/easyeffects/input"
+# EasyEffects 8: po tylu sekundach ciszy odlacza filtry, a przy starcie dzwieku podlacza
+# je z powrotem -> krotki "blep". Duza wartosc = filtry zostaja podlaczone.
+EECFG="$H/.config/easyeffects/db/easyeffectsrc"
+TIMEOUT=3600
 
 if [ "$1" = "usun" ]; then
     for D in $DIRS; do
@@ -39,6 +44,8 @@ if [ "$1" = "usun" ]; then
     for D in $MIC_DIRS; do
         rm -f "$D/$MIC.json"
     done
+    # przywrocenie domyslnego odlaczania filtrow (usuniecie wpisow = wartosc domyslna EasyEffects)
+    [ -f "$EECFG" ] && sed -i '/^outputInactivityTimeout=/d; /^inputInactivityTimeout=/d' "$EECFG"
     echo "Usunieto presety $NAME i $MIC. W EasyEffects wybierz inny preset albo wylacz efekty."
     exit 0
 fi
@@ -81,7 +88,28 @@ for P in "$H/.config/easyeffects" "$H/.config" "$H/.local/share/easyeffects" "$H
     [ -d "$P" ] && [ "$(stat -c %u "$P")" = "0" ] && chown "$U:$GID_U" "$P"
 done
 
-# --- 3. Wczytanie presetow, jesli EasyEffects juz dziala ---
+# --- 3. EasyEffects nie odlacza filtrow w ciszy (bez "blepu" przy starcie dzwieku) ---
+set_ee() {   # $1 = sekcja, $2 = klucz, $3 = wartosc
+    [ -f "$EECFG" ] || : > "$EECFG"
+    awk -v g="[$1]" -v k="$2" -v v="$3" '
+        /^\[/ { if (ing && !done) { print k "=" v; done = 1 }; ing = ($0 == g) }
+        ing && index($0, k "=") == 1 { if (!done) { print k "=" v; done = 1 }; next }
+        { print }
+        END { if (!done) { if (!ing) print g; print k "=" v } }
+    ' "$EECFG" > "$EECFG.tmp" && mv "$EECFG.tmp" "$EECFG"
+}
+for d in "$H/.config" "$H/.config/easyeffects" "$H/.config/easyeffects/db"; do
+    [ -d "$d" ] || install -d -o "$U" -g "$GID_U" "$d"
+done
+set_ee EffectsPipelines outputInactivityTimeout "$TIMEOUT"
+set_ee EffectsPipelines inputInactivityTimeout "$TIMEOUT"
+chown "$U:$GID_U" "$EECFG"
+echo "EasyEffects: filtry odlaczane dopiero po $TIMEOUT s ciszy ($EECFG)"
+if pgrep -u "$U" -x easyeffects >/dev/null; then
+    echo "  -> zamknij EasyEffects (menu -> Zakoncz) i uruchom ponownie, zeby to zadzialalo."
+fi
+
+# --- 4. Wczytanie presetow, jesli EasyEffects juz dziala ---
 echo
 if pgrep -u "$U" -x easyeffects >/dev/null; then
     for N in "$NAME" "$MIC"; do

@@ -93,6 +93,11 @@ The script installs EasyEffects with its plugins (`lsp-plugins-lv2`, `calf`) and
 `L14-windows` preset to your home directory. If EasyEffects is running, it loads the preset
 right away; if not, start EasyEffects and choose **Presets → L14-windows**.
 
+The script also raises the EasyEffects *inactivity timeout* to 3600 s (`~/.config/easyeffects/db/easyeffectsrc`,
+`[EffectsPipelines]`, `outputInactivityTimeout` / `inputInactivityTimeout`). By default EasyEffects unlinks its
+filters after 30 s of silence and relinks them when sound starts – the relinking is heard as a short "blep".
+If EasyEffects is running, restart it afterwards (menu → Quit, then start it again).
+
 Check in EasyEffects:
 - **Equalizer:** 16 bands, mode **APO (DR)**
 - **Multiband Compressor → band 0:** sidechain **Peak**, lookahead **5 ms**
