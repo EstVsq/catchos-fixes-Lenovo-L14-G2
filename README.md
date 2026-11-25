@@ -26,6 +26,7 @@ Fixes for **CachyOS** on a **ThinkPad L14 Gen 2a (AMD, type 20X6)** with a
 | `ryzen-power` | Lenovo caps the Ryzen 7 PRO 5850U at 25 W under sustained load (temperature only ~70 °C) | 2.92 GHz all-core | **3.12 GHz (+7%)**, 30 W |
 | `lte-modem` | The Quectel EM120R-GL LTE modem isn't visible (ModemManager off, FCC lock) and reports `sim-missing` with a SIM inserted | no LTE | LTE connects on its own |
 | `easyeffects-l14` | Speakers sound flat and tinny (no Dolby tuning from Windows) and distort when turned up | limiter cuts more than 6 dB 13% of the time | **0%**, Windows curve within ±0.17 dB |
+| `mic-l14` | Built-in microphone distorts above ~25%: the slider adds up to +60 dB of hardware gain (Capture +30 dB, Internal Mic Boost +30 dB) | 64% of samples clipped at 100% | **0%** at 100% (100% = the old 25%) |
 
 ---
 
@@ -112,6 +113,36 @@ Chain: Equalizer → Bass Enhancer → Filter 165 Hz → Stereo Tools → Multib
 - **Multiband Compressor:** the bass band (< 300 Hz) works as a bass limiter (Peak, lookahead 5 ms),
   so the kick drum doesn't turn the whole music down in the limiter. Tuned on recordings of radio and YouTube.
 - **Limiter:** only a safety net – on loud radio it cuts more than 6 dB 0% of the time (was 13%).
+
+---
+
+## Microphone without distortion (`mic-l14`)
+
+The built-in microphone (Realtek ALC257) distorted above ~25%. The volume slider drives two hardware
+amplifiers at once, and 100% meant **+60 dB** (Capture +30 dB + Internal Mic Boost +30 dB).
+The fix keeps **Internal Mic Boost at 0 dB** and caps **Capture at +23.25 dB**, so
+**100% on the slider = the old 25%** and the whole 0–100% range is clean.
+
+The fix alone:
+```
+cd ~/catchos-fixes
+```
+```
+sudo bash mic-l14/mic-l14-install.sh
+```
+The script writes an override of the ALSA card profile to your home directory
+(`~/.config/alsa-card-profile/paths/`, system files stay untouched), restarts WirePlumber
+and sets the microphone slider to 100%. At the end it shows the mixer state – it should be
+**Capture 54 [23.25dB]** and **Internal Mic Boost 0 [0.00dB]**.
+
+Measured (same voice, same distance):
+
+| Slider | Hardware gain before → after | Clipped samples before → after |
+|---|---|---|
+| 50% | +40 dB → +4.5 dB | 11% → 0% |
+| 100% | +60 dB → +23.25 dB | 64% → **0%** (peak -10 dBFS) |
+
+For a headset plugged into the jack only **Mic Boost** is kept at 0 dB (Capture isn't capped).
 
 ---
 
@@ -230,3 +261,8 @@ sudo bash ath12k-ccfix/ath12k-ccfix-install.sh usun
   (`AT+QSIMDET: 1,1`); in this laptop the detect pin reads "no card", so the SIM is never powered
   (`+CPIN: ERROR 10`). `AT+QUIMSLOT=1` + `AT+QSIMDET=0,0` are stored in the modem's NV memory.
   `AT+CEER: Requested service option not subscribed` = wrong APN – a2mobile needs `a2mobile.pl`.
+- **mic-l14:** the ACP path `analog-input-internal-mic.conf` merges `Capture` (0–63, -17.25…+30 dB) and
+  `Internal Mic Boost` (0–3, +10 dB per step) into one slider, so 100% = +60 dB. The override sets
+  `volume = zero` for `Internal Mic Boost` / `Int Mic Boost` and `volume-limit = 54` (+23.25 dB) for `Capture`;
+  in `analog-input-mic.conf` only `Mic Boost` gets `volume = zero`. PipeWire reads overrides from
+  `~/.config/alsa-card-profile/paths/` before `/usr/share/alsa-card-profile/mixer/paths/`.
