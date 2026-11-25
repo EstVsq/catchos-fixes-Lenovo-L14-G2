@@ -22,6 +22,7 @@ Poprawki dla **CachyOS** na **ThinkPad L14 Gen 2a (AMD, typ 20X6)** z kartą WiF
 | `ath12k-ccfix` | Po wybudzeniu firmware WiFi zapomina kraj i przez ~7 s go odgaduje | 16 s | — |
 | `wifi-fast-resume` | NetworkManager długo skanuje 6 GHz zamiast od razu się połączyć | — | razem z ath12k-ccfix: **~1,2 s** do WiFi |
 | `touchpad-intertouch` | Touchpad Synaptics działa w starym trybie PS/2 i wolno się budzi | ~0,92 s | ~0,62 s |
+| `lte-modem` | Modem LTE Quectel EM120R-GL jest niewidoczny (ModemManager wyłączony, blokada FCC) i zgłasza `sim-missing` mimo włożonej karty | brak LTE | LTE łączy się samo |
 | `easyeffects-l14` | Głośniki brzmią płasko i piskliwie (brak strojenia Dolby z Windows), przy podgłaśnianiu przester | przester ponad 6 dB przez 13% czasu | **0%**, krzywa z Windows ±0,17 dB |
 
 ---
@@ -111,6 +112,28 @@ Preset jest pod **wbudowane głośniki** – na słuchawkach wybierz inny preset
 
 ---
 
+## Modem LTE (`lte-modem`)
+
+Tylko dla modemu **Quectel EM120R-GL** (PCI `1eac:1001`); bez niego skrypt nic nie robi.
+`install-all.sh` ustawia go z APN `a2mobile.pl`. Z inną kartą/operatorem podaj swój APN:
+```
+sudo bash lte-modem/lte-modem-install.sh internet
+```
+Skrypt włącza ModemManager, zdejmowanie blokady FCC, ustawia w modemie gniazdo SIM nr 1 i wyłącza
+wykrywanie karty przez styk (bez tego modem zgłasza `sim-missing` mimo włożonej karty) oraz tworzy
+połączenie NetworkManagera **LTE** (IPv4, łączy się samo; WiFi ma pierwszeństwo).
+
+Sprawdzenie:
+```
+mmcli -m any | grep -E 'state:|signal quality|operator name'
+```
+`connected` + nazwa operatora = działa. Używaj `-m any`, nie `-m 0` – po każdym uśpieniu modem dostaje nowy numer.
+
+> Nie znasz APN? Połącz się raz i odczytaj, co przydzieliła sieć:
+> `sudo systemctl stop ModemManager`, potem
+> `sudo bash -c 'exec 3<>/dev/wwan0at0; printf "AT+CGCONTRDP=1\r" >&3; timeout 3 cat <&3'`
+> (APN to trzecie pole), na koniec `sudo systemctl start ModemManager`.
+
 ## Co z nowym kernelem?
 
 Nic nie trzeba robić:
@@ -123,6 +146,7 @@ Nic nie trzeba robić:
   sterownik – WiFi działa, tylko po wybudzeniu łączy się wolniej (~8 s).
 - **wifi-fast-resume** – zwykły skrypt, nie zależy od kernela.
 - **touchpad-intertouch** – opcja modułu (`/etc/modprobe.d/psmouse-intertouch.conf`), nie zależy od kernela.
+- **lte-modem** – ustawienia siedzą w ModemManagerze, NetworkManagerze i w samym modemie, nie zależą od kernela.
 
 Sprawdzenie, który sterownik WiFi działa:
 ```
@@ -173,3 +197,7 @@ sudo bash ath12k-ccfix/ath12k-ccfix-install.sh usun
   skan tylko ostatnio używanego kanału, więc NetworkManager łączy się od razu.
 - **touchpad-intertouch:** `psmouse.synaptics_intertouch=1` – touchpad idzie przez SMBus (RMI4) zamiast PS/2;
   na PS/2 zostaje tylko TrackPoint (`serio_resume` ~0,6 s).
+- **lte-modem:** modem ma dwa gniazda SIM i domyślnie włączone wykrywanie karty przez styk
+  (`AT+QSIMDET: 1,1`); w tym laptopie styk zgłasza „brak karty”, więc SIM nie jest zasilana
+  (`+CPIN: ERROR 10`). `AT+QUIMSLOT=1` + `AT+QSIMDET=0,0` zapisują się w pamięci modemu.
+  `AT+CEER: Requested service option not subscribed` = zły APN – a2mobile wymaga `a2mobile.pl`.
