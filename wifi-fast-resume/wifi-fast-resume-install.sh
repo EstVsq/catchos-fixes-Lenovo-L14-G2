@@ -1,5 +1,5 @@
 #!/bin/bash
-# Instalator obejscia (wersja 4) bledu ath12k / WCN785x (FastConnect 7800):
+# Instalator obejscia (wersja 5) bledu ath12k / WCN785x (FastConnect 7800):
 # po wybudzeniu firmware resetuje kraj do WORLD i WiFi laczy sie ~16 s.
 # Gdy kraj wroci, skrypt przerywa dlugi pelny skan i kaze wpa_supplicant
 # zeskanowac tylko ostatnio uzywany kanal - NetworkManager laczy sie sam.
@@ -53,8 +53,7 @@ ms() { echo $(( ($(date +%s%N)-START)/1000000 )); }
 LAST=0
 TRY=0
 PREV=""
-sleep 1
-for i in $(seq 1 60); do
+for i in $(seq 1 200); do
     ST=$(state)
     if [ "$ST" = "connected" ]; then
         F=$(iw dev "$IFACE" link | awk '/freq:/{print int($2)}')
@@ -67,19 +66,19 @@ for i in $(seq 1 60); do
         logger -t wifi-fast-resume "DIAG $(ms) ms: kraj=${C:-?} stan=$ST"
         PREV="kraj=$C stan=$ST"
     fi
-    NOW=$(date +%s)
+    NOW=$(ms)
     if [ -n "$FREQ" ] && [ -n "$C" ] && [ "$C" != "00" ] && [ "$ST" = "disconnected" ] \
-       && [ "$TRY" -lt 5 ] && [ $((NOW-LAST)) -ge 2 ]; then
+       && [ "$TRY" -lt 10 ] && { [ "$TRY" -eq 0 ] || [ $((NOW-LAST)) -ge 1000 ]; }; then
         LAST=$NOW
         TRY=$((TRY+1))
         if [ "$TRY" -eq 1 ]; then
             iw dev "$IFACE" scan abort >/dev/null 2>&1
-            sleep 0.3
+            sleep 0.1
         fi
         ERR=$(wpa_scan_freq "$FREQ")
         logger -t wifi-fast-resume "$(ms) ms: skan kanalu $FREQ MHz (proba $TRY) -> ${ERR:-ok}"
     fi
-    sleep 0.3
+    sleep 0.1
 done
 logger -t wifi-fast-resume "brak polaczenia po ~20 s, poddaje sie"
 WORKER_EOF
@@ -107,7 +106,7 @@ else
 fi
 
 echo
-echo "GOTOWE (wersja 4). Zainstalowano:"
+echo "GOTOWE (wersja 5). Zainstalowano:"
 echo "  $WORKER"
 echo "  $HOOK"
 echo
