@@ -23,6 +23,7 @@ Poprawki dla **CachyOS** na **ThinkPad L14 Gen 2a (AMD, typ 20X6)** z kartą WiF
 | `wifi-fast-resume` | NetworkManager długo skanuje 6 GHz zamiast od razu się połączyć | — | razem z ath12k-ccfix: **~1,2 s** do WiFi |
 | `touchpad-intertouch` | Touchpad Synaptics działa w starym trybie PS/2 i wolno się budzi | ~0,92 s | ~0,62 s |
 | `mesa-tkg` *(opcjonalne, nie ma w install-all)* | Zwykła Mesa to ogólna kompilacja | Mesa 26.3 stabilna | Mesa git (tkg), tylko AMD, `-O3 -march=native`, zabezpieczona przed aktualizacjami LLVM |
+| `scx-lavd` | Domyślny planista procesora (BORE) potrafi przycinać pod dużym obciążeniem | BORE | `scx_lavd` (sched-ext): pilne wątki pierwsze, autopilot usypia rdzenie przy małym obciążeniu |
 | `ryzen-power` | Lenovo ogranicza Ryzen 7 PRO 5850U do 25 W pod dłuższym obciążeniem (przy temperaturze ledwie ~70 °C) | 2,92 GHz wszystkie rdzenie | **3,12 GHz (+7%)**, 30 W |
 | `lte-modem` | Modem LTE Quectel EM120R-GL jest niewidoczny (ModemManager wyłączony, blokada FCC) i zgłasza `sim-missing` mimo włożonej karty | brak LTE | LTE łączy się samo |
 | `easyeffects-l14` | Głośniki brzmią płasko i piskliwie (brak strojenia Dolby z Windows), przy podgłaśnianiu przester | przester ponad 6 dB przez 13% czasu | **0%**, krzywa z Windows ±0,17 dB; + preset mikrofonu (RNNoise, wyrazistość, -18,9 dBFS) |
@@ -214,6 +215,20 @@ Po każdej zmianie: `reboot`, potem `kscreen-doctor -o` (znajdź nowy tryb) i `k
 Sprawdź gubienie klatek (testufo.com/frameskipping + zdjęcie z długim naświetlaniem) – jeśli matryca gubi
 klatki, zejdź niżej.
 
+## Planista procesora `scx_lavd` (`scx-lavd`)
+
+Zmienia planistę procesora z domyślnego w CachyOS BORE na **scx_lavd** (sched-ext), robionego przez Igalia dla
+Valve (Steam Deck): rozpoznaje pilne wątki (gra, dźwięk, obraz, wejście) i przepuszcza je pierwsze, więc pod
+dużym obciążeniem jest mniej przycięć. Tryb **autopilot** przy małym obciążeniu usypia nieużywane rdzenie
+(trochę dłużej na baterii). Gdy planista się wysypie, kernel sam wraca do BORE – nic się nie zawiesza.
+
+```
+sudo bash scx-lavd/scx-lavd-install.sh              # scx_lavd
+sudo bash scx-lavd/scx-lavd-install.sh scx_bpfland  # albo inny
+sudo bash scx-lavd/scx-lavd-install.sh usun         # powrót do BORE
+```
+Sprawdzenie: `cat /sys/kernel/sched_ext/state /sys/kernel/sched_ext/root/ops` → `enabled` + `lavd`.
+
 ## Limit mocy 30 W (`ryzen-power`)
 
 Podnosi limit mocy procesora (PPT SLOW) z 25 W ustawionych przez Lenovo do **30 W** – to maksimum, które
@@ -270,6 +285,7 @@ Nic nie trzeba robić:
 - **wifi-fast-resume** – zwykły skrypt, nie zależy od kernela.
 - **touchpad-intertouch** – opcja modułu (`/etc/modprobe.d/psmouse-intertouch.conf`), nie zależy od kernela.
 - **mesa-tkg** – nie zależy od kernela, tylko od **LLVM**: chroni go hook, po aktualizacji LLVM przebuduj (pacman przypomni).
+- **scx-lavd** – wymaga kernela z sched-ext (CachyOS go ma).
 - **ryzen-power** – usługa i timer systemd, nie zależy od kernela.
 - **lte-modem** – ustawienia siedzą w ModemManagerze, NetworkManagerze i w samym modemie, nie zależą od kernela.
 

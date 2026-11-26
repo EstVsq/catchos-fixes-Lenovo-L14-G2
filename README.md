@@ -24,6 +24,7 @@ Fixes for **CachyOS** on a **ThinkPad L14 Gen 2a (AMD, type 20X6)** with a
 | `wifi-fast-resume` | NetworkManager spends a long time scanning 6 GHz instead of connecting right away | — | together with ath12k-ccfix: **~1.2 s** to WiFi |
 | `touchpad-intertouch` | The Synaptics touchpad runs in the old PS/2 mode and wakes up slowly | ~0.92 s | ~0.62 s |
 | `mesa-tkg` *(optional, not in install-all)* | Stock Mesa is a generic build | Mesa 26.3 stable | Mesa git (tkg), AMD-only, `-O3 -march=native`, protected against LLVM updates |
+| `scx-lavd` | Default CPU scheduler (BORE) can stutter under heavy load | BORE | `scx_lavd` (sched-ext): latency-critical threads first, autopilot core parking on light load |
 | `ryzen-power` | Lenovo caps the Ryzen 7 PRO 5850U at 25 W under sustained load (temperature only ~70 °C) | 2.92 GHz all-core | **3.12 GHz (+7%)**, 30 W |
 | `lte-modem` | The Quectel EM120R-GL LTE modem isn't visible (ModemManager off, FCC lock) and reports `sim-missing` with a SIM inserted | no LTE | LTE connects on its own |
 | `easyeffects-l14` | Speakers sound flat and tinny (no Dolby tuning from Windows) and distort when turned up | limiter cuts more than 6 dB 13% of the time | **0%**, Windows curve within ±0.17 dB; + mic preset (RNNoise, clarity, -18.9 dBFS) |
@@ -216,6 +217,20 @@ After every change: `reboot`, then `kscreen-doctor -o` (find the new mode) and `
 Check for frame skipping (testufo.com/frameskipping + a long-exposure photo) – if the panel drops frames,
 go lower.
 
+## CPU scheduler `scx_lavd` (`scx-lavd`)
+
+Switches the CPU scheduler from CachyOS's default BORE to **scx_lavd** (sched-ext), built by Igalia for Valve
+(Steam Deck): it detects latency-critical threads (game, audio, video, input) and runs them first, so there
+are fewer stutters under heavy load. Its **autopilot** mode parks unused cores on light load (a bit more battery).
+If the scheduler crashes, the kernel falls back to BORE on its own – nothing hangs.
+
+```
+sudo bash scx-lavd/scx-lavd-install.sh              # scx_lavd
+sudo bash scx-lavd/scx-lavd-install.sh scx_bpfland  # or another one
+sudo bash scx-lavd/scx-lavd-install.sh usun         # back to BORE
+```
+Check: `cat /sys/kernel/sched_ext/state /sys/kernel/sched_ext/root/ops` → `enabled` + `lavd`.
+
 ## Power limit 30 W (`ryzen-power`)
 
 Raises the CPU power limit (PPT SLOW) from Lenovo's 25 W to **30 W** – the maximum this laptop accepts
@@ -271,6 +286,7 @@ Nothing to do:
 - **wifi-fast-resume** – a plain script, it doesn't depend on the kernel.
 - **touchpad-intertouch** – a module option (`/etc/modprobe.d/psmouse-intertouch.conf`), doesn't depend on the kernel.
 - **mesa-tkg** – doesn't depend on the kernel, but on **LLVM**: protected by a hook, rebuild after an LLVM update (pacman reminds you).
+- **scx-lavd** – needs a kernel with sched-ext (CachyOS has it).
 - **ryzen-power** – a systemd service + timer, doesn't depend on the kernel.
 - **lte-modem** – settings live in ModemManager, NetworkManager and the modem itself, they don't depend on the kernel.
 
