@@ -207,6 +207,11 @@ sudo bash panel-oc/panel-oc-install.sh 70 reduced    # 70 Hz with a shorter vert
 sudo bash panel-oc/panel-oc-install.sh manual 159320 48 32 150 3 6 51 + -   # everything by hand: kHz HFP HSW HBP VFP VSW VBP HPOL VPOL
 sudo bash panel-oc/panel-oc-install.sh usun          # back to the original EDID
 ```
+**Tested on this laptop:** the limit is the line rate (~73k lines/s), not the pixel clock. 70 Hz and 76 Hz on stock
+vertical timings = grey/purple screen. Works: **66 Hz with shortened vertical blanking**:
+```
+sudo bash panel-oc/panel-oc-install.sh manual 156090 48 32 150 3 6 11 + -
+```
 After every change: `reboot`, then `kscreen-doctor -o` (find the new mode) and `kscreen-doctor output.eDP-1.mode.N`.
 Check for frame skipping (testufo.com/frameskipping + a long-exposure photo) – if the panel drops frames,
 go lower.

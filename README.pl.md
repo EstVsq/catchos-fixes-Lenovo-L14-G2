@@ -205,6 +205,11 @@ sudo bash panel-oc/panel-oc-install.sh 70 reduced    # 70 Hz z krótszym wygasza
 sudo bash panel-oc/panel-oc-install.sh manual 159320 48 32 150 3 6 51 + -   # wszystko ręcznie: kHz HFP HSW HBP VFP VSW VBP HPOL VPOL
 sudo bash panel-oc/panel-oc-install.sh usun          # powrót do oryginalnego EDID
 ```
+**Sprawdzone na tym laptopie:** limitem jest częstotliwość linii (~73 tys. linii/s), nie zegar pikseli. 70 Hz i 76 Hz
+na fabrycznym wygaszaniu pionowym = szary/fioletowy ekran. Działa: **66 Hz ze skróconym wygaszaniem pionowym**:
+```
+sudo bash panel-oc/panel-oc-install.sh manual 156090 48 32 150 3 6 11 + -
+```
 Po każdej zmianie: `reboot`, potem `kscreen-doctor -o` (znajdź nowy tryb) i `kscreen-doctor output.eDP-1.mode.NUMER`.
 Sprawdź gubienie klatek (testufo.com/frameskipping + zdjęcie z długim naświetlaniem) – jeśli matryca gubi
 klatki, zejdź niżej.
