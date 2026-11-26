@@ -23,6 +23,7 @@ Fixes for **CachyOS** on a **ThinkPad L14 Gen 2a (AMD, type 20X6)** with a
 | `ath12k-ccfix` | After resume the WiFi firmware forgets the country and takes ~7 s to work it out again | 16 s | — |
 | `wifi-fast-resume` | NetworkManager spends a long time scanning 6 GHz instead of connecting right away | — | together with ath12k-ccfix: **~1.2 s** to WiFi |
 | `touchpad-intertouch` | The Synaptics touchpad runs in the old PS/2 mode and wakes up slowly | ~0.92 s | ~0.62 s |
+| `mesa-tkg` *(optional, not in install-all)* | Stock Mesa is a generic build | Mesa 26.3 stable | Mesa git (tkg), AMD-only, `-O3 -march=native`, protected against LLVM updates |
 | `ryzen-power` | Lenovo caps the Ryzen 7 PRO 5850U at 25 W under sustained load (temperature only ~70 °C) | 2.92 GHz all-core | **3.12 GHz (+7%)**, 30 W |
 | `lte-modem` | The Quectel EM120R-GL LTE modem isn't visible (ModemManager off, FCC lock) and reports `sim-missing` with a SIM inserted | no LTE | LTE connects on its own |
 | `easyeffects-l14` | Speakers sound flat and tinny (no Dolby tuning from Windows) and distort when turned up | limiter cuts more than 6 dB 13% of the time | **0%**, Windows curve within ±0.17 dB; + mic preset (RNNoise, clarity, -18.9 dBFS) |
@@ -171,6 +172,26 @@ For a headset plugged into the jack only **Mic Boost** is kept at 0 dB (Capture 
 
 ---
 
+## Custom Mesa graphics driver (`mesa-tkg`) – optional
+
+Development Mesa built with [mesa-git-tkg](https://github.com/Frogging-Family/mesa-git) for this laptop:
+AMD drivers only (radeonsi, RADV), `-O3 -march=native`, no rusticl, no LTO (Mesa 27 refuses LTO).
+**Not part of `install-all.sh`** – the build takes 15–30 minutes and it's a development version.
+
+```
+sudo bash mesa-tkg/mesa-tkg-install.sh             # build + install (or only add the protection if already installed)
+sudo bash mesa-tkg/mesa-tkg-install.sh przebuduj   # rebuild (newer Mesa / after an LLVM update)
+sudo bash mesa-tkg/mesa-tkg-install.sh usun        # back to stock Mesa
+```
+
+**Protection against updates:** Mesa links against LLVM. When `pacman -Syu` bumps `llvm-libs` to a new major
+version, the old library disappears and the desktop wouldn't start. A pacman hook copies the old `libLLVM`
+to `/usr/local/lib/mesa-tkg-llvm` *before* the update, so the driver keeps working; after the update pacman
+prints a reminder to rebuild. Once rebuilt, the old copy is removed automatically.
+
+If the desktop doesn't start anyway: in the Limine boot menu choose **Snapshots** → the snapshot from before
+the update, or log in on a text console (Ctrl+Alt+F3) and run `sudo pacman -S mesa vulkan-radeon`.
+
 ## Power limit 30 W (`ryzen-power`)
 
 Raises the CPU power limit (PPT SLOW) from Lenovo's 25 W to **30 W** – the maximum this laptop accepts
@@ -225,6 +246,7 @@ Nothing to do:
   WiFi works, it just reconnects more slowly after resume (~8 s).
 - **wifi-fast-resume** – a plain script, it doesn't depend on the kernel.
 - **touchpad-intertouch** – a module option (`/etc/modprobe.d/psmouse-intertouch.conf`), doesn't depend on the kernel.
+- **mesa-tkg** – doesn't depend on the kernel, but on **LLVM**: protected by a hook, rebuild after an LLVM update (pacman reminds you).
 - **ryzen-power** – a systemd service + timer, doesn't depend on the kernel.
 - **lte-modem** – settings live in ModemManager, NetworkManager and the modem itself, they don't depend on the kernel.
 
