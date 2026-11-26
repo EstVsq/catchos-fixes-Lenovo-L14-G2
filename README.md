@@ -192,6 +192,25 @@ prints a reminder to rebuild. Once rebuilt, the old copy is removed automaticall
 If the desktop doesn't start anyway: in the Limine boot menu choose **Snapshots** → the snapshot from before
 the update, or log in on a text console (Ctrl+Alt+F3) and run `sudo pacman -S mesa vulkan-radeon`.
 
+## Panel refresh-rate overclock (`panel-oc`) – optional
+
+The Linux equivalent of **CRU** from Windows: a copy of the panel's EDID with an extra mode with exact timings
+(pixel clock, front porch / sync / back porch, ±HSync/±VSync), loaded by the kernel instead of the original
+(`drm.edid_firmware`, added to Limine and the initramfs). The preferred mode stays 60 Hz, so the laptop always
+boots at a safe 60 Hz; you select the new mode yourself. **Not part of `install-all.sh`.**
+
+Panel (BOE 0x0AAA), stock: 147.06 MHz, H 1920/48/32/150 (total 2150), V 1080/3/6/51 (total 1140), +HSync −VSync.
+
+```
+sudo bash panel-oc/panel-oc-install.sh 65            # 65 Hz on stock timings (only the pixel clock goes up, like "LCD native" in CRU)
+sudo bash panel-oc/panel-oc-install.sh 70 reduced    # 70 Hz with a shorter vertical blanking (lower pixel clock)
+sudo bash panel-oc/panel-oc-install.sh manual 159320 48 32 150 3 6 51 + -   # everything by hand: kHz HFP HSW HBP VFP VSW VBP HPOL VPOL
+sudo bash panel-oc/panel-oc-install.sh usun          # back to the original EDID
+```
+After every change: `reboot`, then `kscreen-doctor -o` (find the new mode) and `kscreen-doctor output.eDP-1.mode.N`.
+Check for frame skipping (testufo.com/frameskipping + a long-exposure photo) – if the panel drops frames,
+go lower.
+
 ## Power limit 30 W (`ryzen-power`)
 
 Raises the CPU power limit (PPT SLOW) from Lenovo's 25 W to **30 W** – the maximum this laptop accepts

@@ -190,6 +190,25 @@ aktualizacji pacman przypomina o przebudowie. Po przebudowie stara kopia sama si
 Gdyby pulpit mimo to nie wstał: w menu Limine wybierz **Snapshots** → migawkę sprzed aktualizacji, albo
 zaloguj się w konsoli tekstowej (Ctrl+Alt+F3) i wpisz `sudo pacman -S mesa vulkan-radeon`.
 
+## Podkręcanie odświeżania matrycy (`panel-oc`) – opcjonalnie
+
+Odpowiednik **CRU** z Windowsa: kopia EDID matrycy z dodatkowym trybem o dokładnych parametrach (zegar pikseli,
+front porch / sync / back porch, ±HSync/±VSync), ładowana przez kernel zamiast oryginału (`drm.edid_firmware`,
+dopisane do Limine i initramfs). Tryb preferowany zostaje 60 Hz, więc laptop zawsze startuje na bezpiecznych
+60 Hz, a nowy tryb wybierasz sam. **Nie ma tego w `install-all.sh`.**
+
+Matryca (BOE 0x0AAA), fabrycznie: 147,06 MHz, H 1920/48/32/150 (razem 2150), V 1080/3/6/51 (razem 1140), +HSync −VSync.
+
+```
+sudo bash panel-oc/panel-oc-install.sh 65            # 65 Hz na fabrycznych parametrach (rośnie tylko zegar, jak „LCD native” w CRU)
+sudo bash panel-oc/panel-oc-install.sh 70 reduced    # 70 Hz z krótszym wygaszaniem pionowym (niższy zegar pikseli)
+sudo bash panel-oc/panel-oc-install.sh manual 159320 48 32 150 3 6 51 + -   # wszystko ręcznie: kHz HFP HSW HBP VFP VSW VBP HPOL VPOL
+sudo bash panel-oc/panel-oc-install.sh usun          # powrót do oryginalnego EDID
+```
+Po każdej zmianie: `reboot`, potem `kscreen-doctor -o` (znajdź nowy tryb) i `kscreen-doctor output.eDP-1.mode.NUMER`.
+Sprawdź gubienie klatek (testufo.com/frameskipping + zdjęcie z długim naświetlaniem) – jeśli matryca gubi
+klatki, zejdź niżej.
+
 ## Limit mocy 30 W (`ryzen-power`)
 
 Podnosi limit mocy procesora (PPT SLOW) z 25 W ustawionych przez Lenovo do **30 W** – to maksimum, które
