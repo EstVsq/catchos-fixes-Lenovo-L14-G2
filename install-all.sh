@@ -55,7 +55,7 @@ if has_wcn785x; then
     bash "$DIR/wifi-fast-resume/wifi-fast-resume-install.sh" || echo "!!! wifi-fast-resume nie wyszedl - patrz wyzej"
 else
     echo
-    echo "=== 2/9 i 3/8 POMINIETE: brak karty WiFi 7 Qualcomm WCN785x (PCI 17cb:1107) ==="
+    echo "=== 2/9 i 3/9 POMINIETE: brak karty WiFi 7 Qualcomm WCN785x (PCI 17cb:1107) ==="
     echo "Poprawki WiFi sa tylko dla tej karty (np. Quectel NCM865 / QCNCM865)."
 fi
 
